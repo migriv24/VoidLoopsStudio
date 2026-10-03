@@ -1,0 +1,1012 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Void Loops Studio</title>
+<link rel="stylesheet" href="/vendor/litegraph.css">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background:#0f1115; color:#d7dae0; font:13px/1.45 ui-monospace,Consolas,monospace;
+         display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+  header { display:flex; gap:6px; align-items:center; padding:7px 10px;
+           background:#161a22; border-bottom:1px solid #262b36; flex-wrap:wrap; }
+  header b { color:#8b93a7; letter-spacing:.06em; margin-right:4px; }
+  select,button,input { background:#1d222d; color:#d7dae0; border:1px solid #333a49;
+                        border-radius:6px; padding:4px 9px; font:inherit; }
+  input[type=number] { width:76px; }
+  button:hover { background:#2a3140; cursor:pointer; }
+  #play { background:#173425; border-color:#2f6647; font-weight:700; }
+  #bpm { width:60px; }
+  #meta { color:#69707f; margin-left:auto; font-size:11px; }
+  .sep { width:1px; height:20px; background:#262b36; margin:0 2px; }
+  #main { flex:1; display:flex; min-height:0; }
+  #libwrap { width:0; overflow:hidden; transition:width .15s; background:#12151c;
+             border-right:1px solid #262b36; display:flex; flex-direction:column; }
+  #libwrap.open { width:260px; }
+  #lib { flex:1; overflow-y:auto; padding:6px; }
+  #lib .s { display:flex; justify-content:space-between; padding:2px 5px; border-radius:4px;
+            align-items:center; }
+  #lib .s:hover { background:#1d222d; }
+  #lib .s button { padding:0 8px; font-size:12px; }
+  #libsearch { margin:6px; width:calc(100% - 12px); }
+  #libcredit { padding:5px 8px; font-size:10px; color:#5a6172; border-top:1px solid #262b36; }
+  #wrap { flex:1; position:relative; min-width:0; }
+  canvas#cv { position:absolute; inset:0; outline:none; }
+  #insp { width:0; overflow:hidden; transition:width .15s; background:#12151c;
+          border-left:1px solid #262b36; }
+  #insp.open { width:300px; overflow-y:auto; }
+  #insp .pad { padding:12px; }
+  #insp h3 { color:#e6e9f0; font-size:14px; }
+  #insp .k { color:#69707f; font-size:11px; margin-bottom:10px; }
+  #insp label { display:block; color:#8b93a7; font-size:11px; margin-top:8px; }
+  #insp .hint { color:#4d5464; font-size:10px; }
+  #insp input, #insp select { width:100%; margin-top:2px; }
+  #insp .row { display:flex; gap:5px; margin-top:8px; }
+  #insp .row > * { flex:1; min-width:0; }
+  #insp .danger { border-color:#5a2a31; color:#e0707a; margin-top:14px; width:100%; }
+  #roll { background:#0c0e12; border:1px solid #262b36; border-radius:6px; margin-top:6px;
+          display:block; cursor:crosshair; }
+  .rollbar { display:flex; gap:4px; margin-top:8px; align-items:center; font-size:11px;
+             color:#8b93a7; }
+  .rollbar select { width:auto; padding:2px 6px; }
+  .rollbar button { padding:1px 8px; }
+  footer { display:flex; gap:8px; padding:6px 10px; background:#161a22;
+           border-top:1px solid #262b36; }
+  #cmd { flex:1; }
+  #log { max-height:84px; overflow-y:auto; padding:3px 10px; background:#0c0e12;
+         border-top:1px solid #1d222d; white-space:pre-wrap; color:#8b93a7; font-size:11px; }
+  #log .err { color:#e0707a; }
+  /* litegraph chrome, tuned to our palette */
+  .litegraph.litecontextmenu { font:12px ui-monospace,Consolas,monospace; }
+  .litegraph.litesearchbox { font:12px ui-monospace,Consolas,monospace; }
+</style></head><body>
+<header>
+  <b>VOID LOOPS</b>
+  <select id="patch" title="active patch"></select>
+  <button id="newpatch" title="new patch">+</button>
+  <span class="sep"></span>
+  <button id="play">&#9654; play</button>
+  <button id="stop">&#9632;</button>
+  <button id="bounce" title="render to WAV file">bounce</button>
+  <span class="sep"></span>
+  <select id="addkind"><option value="">+ add node…</option></select>
+  <button id="grouploop" title="group the selected nodes into a Loop (Ctrl+G)">↺ group</button>
+  <button id="libtoggle">library</button>
+  <span class="sep"></span>
+  <button id="undo" title="undo">↶</button>
+  <button id="redo" title="redo">↷</button>
+  <span class="sep"></span>
+  <label style="color:#8b93a7;font-size:11px">BPM <input id="bpm" type="number" min="20" max="300"></label>
+  <span id="hintbar" style="color:#fbbf24;font-size:11px"></span>
+  <span id="meta"></span>
+</header>
+<div id="main">
+  <div id="libwrap">
+    <input id="libsearch" placeholder="search sounds… kick, bass, latin…">
+    <div id="lib"></div>
+    <div id="libcredit">sounds: the LMMS community — lmms.io</div>
+  </div>
+  <div id="wrap"><canvas id="cv" tabindex="1"></canvas></div>
+  <div id="insp"><div class="pad" id="insppad"></div></div>
+</div>
+<div id="log"></div>
+<footer><input id="cmd" placeholder="dispatcher command… (validate · ls · tag osc1 +drums · help)">
+<button id="run">run</button></footer>
+<audio id="audio"></audio>
+<script src="/vendor/litegraph.js"></script>
+<script>
+"use strict";
+// ── the editor, v4: LiteGraph.js canvas over the same dispatcher seam.
+//    /state is the source of truth; every page action is a POST the server
+//    echoes as a CLI line. The graph is REBUILT from /state after each
+//    mutation — a rejected edit simply disappears (auto-repair).
+const SIG = { audio:"#4ade80", events:"#fbbf24", clock:"#60a5fa", control:"#f472b6" };
+const KIND_BG = { clock:"#2b3a55", sequencer:"#3d3151", sequence:"#46375c", osc:"#274436",
+                  sampler:"#2b4438", "sample-in":"#33402a", "midi-in":"#3d3a26",
+                  midi:"#4a2f63", effect:"#4a3a25", "vst-instrument":"#274046",
+                  "vst-effect":"#463a26", mix:"#4a3a25", output:"#4d2b31",
+                  loop:"#20303c", value:"#3a3440", math:"#343a40", map:"#343a40",
+                  compare:"#343a40", "time-of-day":"#403a2c" };
+let S = null, sel = null, vstCache = null, samplePickCb = null;
+let syncing = false, kindsRegistered = false;
+const TYPE_BY_KIND = {};                    // vls kind -> litegraph type string
+const KINFO = {};                           // vls kind -> {editor, holiday}
+const ROLL = {};                            // per-node roll view: {base, len}
+
+const $ = id => document.getElementById(id);
+async function j(url, body) {
+  const r = await fetch(url, body ? {method:"POST", body: JSON.stringify(body)} : {});
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok || data.ok === false) log((data.lines || [data.error || r.statusText]), true);
+  return data;
+}
+function log(lines, err) {
+  const el = $("log");
+  el.innerHTML += (Array.isArray(lines)?lines:[lines]).map(l =>
+    `<div class="${err?'err':''}">${String(l).replace(/</g,"&lt;")}</div>`).join("");
+  el.scrollTop = el.scrollHeight;
+}
+function hint(t) { $("hintbar").textContent = t || ""; }
+window.onerror = (msg, src, line) => { log([`page error: ${msg} (${line})`], true); };
+// mutations run through one queue so their CLI order matches the click order
+let Q = Promise.resolve();
+const enqueue = fn => (Q = Q.then(fn, fn));
+
+// ── LiteGraph setup ──
+LiteGraph.NODE_TITLE_COLOR = "#e6e9f0";
+LiteGraph.NODE_TEXT_COLOR = "#a8aebc";
+LiteGraph.DEFAULT_SHADOW_COLOR = "rgba(0,0,0,0.35)";
+const graph = new LGraph();
+const canvas = new LGraphCanvas("#cv", graph);
+canvas.background_image = null;               // flat void, no grid png
+canvas.clear_background_color = "#0f1115";
+canvas.render_canvas_border = false;
+canvas.allow_searchbox = true;                // double-click = LiteGraph's add search
+canvas.default_connection_color_byType = SIG;
+canvas.default_connection_color_byTypeOff = SIG;
+Object.assign(LGraphCanvas.link_type_colors, SIG);
+
+function inField() {
+  const a = document.activeElement;
+  return a && (a.tagName === "INPUT" || a.tagName === "SELECT" || a.tagName === "TEXTAREA");
+}
+
+// shared node behavior: server-first connection changes
+function onConnChange(type, slot, connected, linkInfo) {
+  if (syncing || type !== LiteGraph.INPUT || !linkInfo) return;
+  const src = graph.getNodeById(linkInfo.origin_id);
+  if (!src || !src.properties.vl || !this.properties.vl) return;
+  const body = { src: src.properties.vl, dst: this.properties.vl,
+                 src_port: (src.outputs[linkInfo.origin_slot] || {}).name,
+                 dst_port: (this.inputs[linkInfo.target_slot] || {}).name };
+  enqueue(async () => {
+    if (connected) {
+      const r = await j("/wire", body);
+      if (r.relation) log([`wired ${body.src}.${body.src_port} → ${body.dst}.${body.dst_port}`]);
+    } else {
+      await j("/unwire", {src: body.src, dst: body.dst});
+      log([`unwired ${body.src} → ${body.dst}`]);
+    }
+    await refresh(false);
+  });
+}
+// ── node faces: nodes are little WINDOWS (author, 2026-07-08) ──
+// Minimize = LiteGraph's native collapse (the dot in the title bar). Maximize
+// (the ▣ button) opens the node's real face in-canvas: for note nodes (midi /
+// sequencer / sequence) a full piano roll — left click adds, right click
+// deletes; drag the corner to grow the window. VST nodes get window buttons
+// that drive the plugin's own native editor.
+const expKey = n => `vlexp:${S.active}:${n}`;
+const szKey  = n => `vlsz:${S.active}:${n}`;
+const isExp  = n => localStorage.getItem(expKey(n)) === "1";
+const hasFace = sn => !!sn.notes || (KINFO[sn.kind] || {}).holiday;
+// per-node roll view {base: bottom pitch, len: note length, c0: first visible
+// column}. First open centers on the node's notes, so late-placed notes (a
+// chord at tick 1344 = 7s in) are IN VIEW instead of invisibly off-grid.
+function rollOf(sn) {
+  const n = sn.name;
+  if (!ROLL[n]) {
+    let base = 48, c0 = 0;
+    if (sn.notes && sn.notes.length) {
+      base = Math.max(0, Math.min(96, Math.min(...sn.notes.map(t => t.pitch)) - 8));
+      c0 = Math.max(0, Math.floor(Math.min(...sn.notes.map(t => t.start)) / ROLL_STEP / 16) * 16);
+    }
+    ROLL[n] = { base, len: 96, c0 };
+  }
+  return ROLL[n];
+}
+const ROLL_STEP = 24, ROLL_COLS = 64, ROLL_ROWH = 12, KEYS_W = 26;
+
+function slotsBottom(n) {
+  return 8 + Math.max((n.inputs || []).length, (n.outputs || []).length) * LiteGraph.NODE_SLOT_HEIGHT;
+}
+function rollGeom(node) {                    // the grid rect, node-local
+  const top = slotsBottom(node) + 20;        // +20 = the roll's header strip
+  return { hx: 6, hy: top - 18, x: 6 + KEYS_W, y: top,
+           w: node.size[0] - 12 - KEYS_W, h: node.size[1] - top - 8 };
+}
+function btn(ctx, hits, x, y, w, label, fn, hot) {
+  ctx.fillStyle = hot ? "#2f6647" : "#242b38";
+  ctx.strokeStyle = "#3a4152"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(x, y, w, 14, 3); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#c6ccd8"; ctx.font = "9px ui-monospace";
+  ctx.fillText(label, x + 5, y + 10);
+  hits.push({ x, y, w, h: 14, fn });
+}
+
+function drawFg(ctx) {
+  this._hits = [];
+  if (this.flags.collapsed || !this.vlData) return;
+  const sn = this.vlData, name = sn.name, exp = isExp(name);
+  const tags = (sn.tags || []).filter(t => !t.startsWith("glyph:")).join(" ");
+  const info = sn.kind === "loop" ? ("↺ " + (sn.content.patch || "?")) : (tags || sn.kind);
+  ctx.font = "9px ui-monospace"; ctx.fillStyle = "rgba(139,147,167,.8)";
+  ctx.fillText(info.slice(0, 28), 6, this.size[1] - 5);
+  // an arr-fed sequence defers to its sources: its own mini midi steps aside
+  const arrWired = S.wires.some(w => w.to === name && w.dst_port === "arr");
+  // the window chrome: ▣ maximize / ❐ restore lives IN THE TITLE BAR (negative
+  // y — LiteGraph draws the title before onDrawForeground, so this paints on top)
+  if (hasFace(sn) && sn.notes && !arrWired) {
+    btn(ctx, this._hits, this.size[0] - 26, -24, 18, exp ? "❐" : "▣",
+        () => toggleExpand(name), exp);
+  }
+  // VST nodes: window buttons driving the plugin's own native editor
+  if ((KINFO[sn.kind] || {}).holiday) {
+    const y = this.size[1] - 34;
+    btn(ctx, this._hits, 6, y, 74, "plugin window", () => vstUi(name, "open"));
+    btn(ctx, this._hits, 84, y, 44, "apply", () => vstUi(name, "save"));
+    btn(ctx, this._hits, 132, y, 40, "close", () => vstUi(name, "close"));
+  }
+  if (!sn.notes) return;
+  if (arrWired && !exp) {                    // composition mode: sources drive it
+    ctx.fillStyle = "rgba(139,147,167,.6)"; ctx.font = "9px ui-monospace";
+    const extra = sn.notes.length ? ` (+${sn.notes.length} inline notes)` : "";
+    ctx.fillText("▶ arr-driven" + extra, 6, this.size[1] - 18);
+    return;
+  }
+  if (!exp) {                                // minimized: the mini preview
+    if (!sn.notes.length) return;
+    const rx = 6, rh = 26, ry = this.size[1] - rh - 16, rw = this.size[0] - 12;
+    ctx.fillStyle = "#141822"; ctx.fillRect(rx, ry, rw, rh);
+    const span = Math.max(...sn.notes.map(t => t.start + Math.abs(t.length || 1)), 1);
+    const lo = Math.min(...sn.notes.map(t => t.pitch)), hi = Math.max(...sn.notes.map(t => t.pitch));
+    sn.notes.forEach(t => {
+      const y = hi === lo ? ry + rh / 2 - 1 : ry + 2 + (hi - t.pitch) / (hi - lo) * (rh - 6);
+      ctx.fillStyle = t.length < 0 ? "#e0707a" : "#b48ce0";
+      ctx.fillRect(rx + t.start / span * rw, y, Math.max(Math.abs(t.length) / span * rw - 1, 2), 3);
+    });
+    return;
+  }
+  drawRollFace(ctx, this, sn);               // maximized: the piano roll window
+}
+
+function drawRollFace(ctx, node, sn) {
+  const g = rollGeom(node), r = rollOf(sn);
+  if (g.w < 60 || g.h < 40) return;
+  // header strip: note lengths + octave + time scroll
+  let hx = g.hx;
+  [["1/16", 24], ["1/8", 48], ["1/4", 96], ["1/2", 192]].forEach(([lb, v]) => {
+    btn(ctx, node._hits, hx, g.hy, 30, lb, () => { r.len = v; canvas.setDirty(true); },
+        r.len === v);
+    hx += 33;
+  });
+  btn(ctx, node._hits, hx, g.hy, 16, "−", () => { r.base = Math.max(r.base - 12, 0); canvas.setDirty(true); });
+  btn(ctx, node._hits, hx + 18, g.hy, 16, "+", () => { r.base = Math.min(r.base + 12, 96); canvas.setDirty(true); });
+  btn(ctx, node._hits, hx + 38, g.hy, 16, "◀", () => { r.c0 = Math.max(r.c0 - 16, 0); canvas.setDirty(true); });
+  btn(ctx, node._hits, hx + 56, g.hy, 16, "▶", () => { r.c0 += 16; canvas.setDirty(true); });
+  ctx.fillStyle = "#69707f"; ctx.font = "9px ui-monospace";
+  const rows = Math.max(Math.floor(g.h / ROLL_ROWH), 1);
+  ctx.fillText(`bar ${Math.floor(r.c0 / 16) + 1} · C${r.base / 12 - 1}–${Math.floor((r.base + rows) / 12) - 1}` +
+               ` · wheel ↕ · shift+wheel ↔`, hx + 78, g.hy + 10);
+  // keys column + grid
+  ctx.fillStyle = "#0c0e12"; ctx.fillRect(g.x - KEYS_W, g.y, KEYS_W, rows * ROLL_ROWH);
+  ctx.fillStyle = "#10131a"; ctx.fillRect(g.x, g.y, g.w, rows * ROLL_ROWH);
+  const colW = g.w / ROLL_COLS;
+  for (let row = 0; row < rows; row++) {
+    const pitch = r.base + (rows - 1 - row), y = g.y + row * ROLL_ROWH;
+    if ([1, 3, 6, 8, 10].includes(pitch % 12)) {
+      ctx.fillStyle = "#0d1016"; ctx.fillRect(g.x, y, g.w, ROLL_ROWH);
+      ctx.fillStyle = "#151a24"; ctx.fillRect(g.x - KEYS_W, y, KEYS_W, ROLL_ROWH);
+    }
+    if (pitch % 12 === 0) {
+      ctx.strokeStyle = "#262b36"; ctx.beginPath();
+      ctx.moveTo(g.x - KEYS_W, y + ROLL_ROWH); ctx.lineTo(g.x + g.w, y + ROLL_ROWH); ctx.stroke();
+      ctx.fillStyle = "#5a6172"; ctx.font = "8px ui-monospace";
+      ctx.fillText("C" + (pitch / 12 - 1), g.x - KEYS_W + 3, y + ROLL_ROWH - 2);
+    }
+  }
+  for (let c = 0; c <= ROLL_COLS; c += 4) {  // beat / bar lines (absolute cols)
+    ctx.strokeStyle = (r.c0 + c) % 16 === 0 ? "#333a49" : "#1b2029";
+    ctx.beginPath(); ctx.moveTo(g.x + c * colW, g.y);
+    ctx.lineTo(g.x + c * colW, g.y + rows * ROLL_ROWH); ctx.stroke();
+  }
+  (sn.notes || []).forEach(t => {
+    const row = rows - 1 - (t.pitch - r.base);
+    if (row < 0 || row >= rows) return;
+    const cx = t.start / ROLL_STEP - r.c0;     // view-relative column
+    if (cx >= ROLL_COLS || cx + Math.abs(t.length) / ROLL_STEP < 0) return;
+    ctx.fillStyle = t.length < 0 ? "#e0707a" : "#b48ce0";
+    ctx.fillRect(g.x + cx * colW + 1, g.y + row * ROLL_ROWH + 1,
+                 Math.max(Math.abs(t.length) / ROLL_STEP * colW - 2, 3), ROLL_ROWH - 2);
+  });
+}
+
+function toggleExpand(name) {
+  const on = !isExp(name);
+  localStorage.setItem(expKey(name), on ? "1" : "0");
+  const n = graph._nodes.find(x => x.properties && x.properties.vl === name);
+  if (n) {
+    if (on) {
+      const sv = localStorage.getItem(szKey(name));
+      n.size = sv ? sv.split(",").map(Number) : [560, 360];
+    } else {
+      n.size = n.computeSize();
+      n.size[0] = Math.max(n.size[0], 150);
+      n.size[1] += (n.vlData && n.vlData.notes && n.vlData.notes.length) ? 44 : 14;
+    }
+  }
+  canvas.setDirty(true, true);
+}
+
+async function vstUi(name, action) {
+  const r = await j("/vstui", { node: name, action });
+  if (r.lines) log(r.lines, r.ok === false);
+  if (action === "save") refresh(false);     // preset landed on the node
+}
+
+// ── face widgets (#14b: sliders ON nodes) ──
+// Curated numeric params (the p:<field> fields) get sliders/drag-numbers on the
+// node face; select fields get combos; utility nodes wear ALL their numerics —
+// widgets-as-nodes, literally. Note kinds keep their roll face (no widgets).
+// A wired p:<field> disables its widget: the control graph owns that value.
+// Drags stage values and flush AFTER the pointer lifts, so the /state rebuild
+// never yanks a slider out from under the hand mid-drag.
+const UTILITY_KINDS = new Set(["value", "math", "map", "compare", "time-of-day"]);
+const PENDING = {};                          // "node|field" -> staged value
+let flushT = null, ptrDown = false;
+const prec = step => step >= 1 ? 0 : Math.min(String(step).split(".")[1]?.length || 1, 4);
+function stageParam(node, field, value) {
+  PENDING[node + "|" + field] = value;
+  clearTimeout(flushT);
+  flushT = setTimeout(tryFlush, 350);
+}
+function tryFlush() {                        // wait out an in-progress drag
+  if (ptrDown) { flushT = setTimeout(tryFlush, 350); return; }
+  flushParams();
+}
+function flushParams() {
+  clearTimeout(flushT); flushT = null;
+  const batch = Object.entries(PENDING);
+  if (!batch.length) return;
+  batch.forEach(([k]) => delete PENDING[k]);
+  enqueue(async () => {
+    for (const [key, v] of batch) {
+      const [node, field] = key.split("|");
+      await j("/set", { node, field, value: v });
+      log([`set ${node}.${field} = ${v}`]);
+    }
+    await refresh(false);
+    await rerenderLive();
+  });
+}
+
+// live tweaks audible (roadmap item 3's first bite): a param change landing
+// while the transport is playing re-renders and swaps the audio in place,
+// resuming at the same position. True block-by-block streaming waits for the
+// real engine; this is the trivial backend's honest "turn the knob, hear it".
+async function rerenderLive() {
+  const a = $("audio");
+  if (a.paused || !a.src) return;
+  const pos = a.currentTime;
+  hint("re-rendering…");
+  const r = await j("/render", {});
+  hint();
+  if (!r.rendered) return;
+  a.src = "/wav?t=" + Date.now();
+  a.addEventListener("loadedmetadata", () => {
+    a.currentTime = Math.min(pos, a.duration || pos);
+    a.play().catch(() => {});
+  }, { once: true });
+  log([`♪ live: re-rendered, resuming at ${pos.toFixed(2)}s`]);
+}
+function addFaceWidgets(n, sn) {
+  if (sn.notes || sn.kind === "loop") return;
+  const uiAll = S.field_ui[sn.kind] || {};
+  const params = new Set((sn.inlets || []).filter(p => p.param).map(p => p.name.slice(2)));
+  // a field is "owned by the graph" when its p:<field> param inlet is wired, or
+  // (math/compare a/b) when the same-named structural control inlet is wired
+  const wired = new Set(S.wires.filter(w => w.to === sn.name)
+    .map(w => (w.dst_port || "").startsWith("p:") ? w.dst_port.slice(2) : w.dst_port));
+  for (const [f, vRaw] of Object.entries(sn.content)) {
+    const ui = uiAll[f] || {};
+    // a staged-but-unflushed value is newer than the server's — show it, so a
+    // rebuild mid-gesture doesn't visually "reset" the knob (jam feedback #4)
+    const staged = PENDING[sn.name + "|" + f];
+    const v = staged !== undefined ? staged : vRaw;
+    let w = null;
+    if (ui.type === "select") {
+      w = n.addWidget("combo", f, String(v ?? ui.options[0]),
+                      val => stageParam(sn.name, f, val), { values: ui.options });
+    } else if (ui.type === "number" && (params.has(f) || UTILITY_KINDS.has(sn.kind))) {
+      const step = ui.step || 1, p = prec(step);
+      if (ui.min !== undefined && ui.max !== undefined) {
+        w = n.addWidget("slider", f, Number(v) || 0, val => {
+          // LiteGraph sliders are continuous — snap to our step ourselves
+          const s = +Math.min(Math.max(Math.round(val / step) * step, ui.min), ui.max).toFixed(4);
+          w.value = s;
+          stageParam(sn.name, f, s);
+        }, { min: ui.min, max: ui.max, precision: p });
+      } else {
+        // drag-number: LiteGraph moves by 0.1*step per pixel, so scale ×10
+        w = n.addWidget("number", f, Number(v) || 0,
+                        val => stageParam(sn.name, f, +(+val).toFixed(4)),
+                        { step: step * 10, precision: p });
+      }
+    }
+    if (w && wired.has(f)) { w.disabled = true; w.name = f + " ⚡"; }
+  }
+}
+
+// one server round-trip that refreshes ONE node's notes (keeps roll clicks snappy)
+async function rollSyncNode(name) {
+  S = await j("/state");
+  const sn = S.nodes.find(x => x.name === name);
+  const n = graph._nodes.find(x => x.properties && x.properties.vl === name);
+  if (sn && n) n.vlData = sn;
+  if (sel === name) inspect();
+  canvas.setDirty(true, true);
+}
+
+// roll clicks: canvas.onMouse fires before LiteGraph routes buttons, so the
+// face can claim both left (add) and right (delete) clicks inside its grid
+canvas.onMouse = function(e) {
+  if (e.type !== "mousedown" && e.type !== "pointerdown") return false;
+  const node = graph.getNodeOnPos(e.canvasX, e.canvasY, canvas.visible_nodes);
+  if (!node || !node.vlData || node.flags.collapsed) return false;
+  const pos = [e.canvasX - node.pos[0], e.canvasY - node.pos[1]];
+  for (const h of node._hits || []) {        // drawn buttons (any face)
+    if (pos[0] >= h.x && pos[0] <= h.x + h.w && pos[1] >= h.y && pos[1] <= h.y + h.h) {
+      if (e.which !== 3) h.fn();
+      return true;
+    }
+  }
+  const sn = node.vlData;
+  if (!sn.notes || !isExp(sn.name)) return false;
+  const g = rollGeom(node), r = rollOf(sn);
+  const rows = Math.max(Math.floor(g.h / ROLL_ROWH), 1);
+  if (pos[0] < g.x || pos[0] > g.x + g.w || pos[1] < g.y || pos[1] > g.y + rows * ROLL_ROWH)
+    return false;
+  const col = r.c0 + Math.floor((pos[0] - g.x) / (g.w / ROLL_COLS));
+  const row = Math.floor((pos[1] - g.y) / ROLL_ROWH);
+  const pitch = r.base + (rows - 1 - row);
+  const hit = (sn.notes || []).find(t => t.pitch === pitch &&
+    col >= Math.floor(t.start / ROLL_STEP) &&
+    col < Math.max(Math.ceil((t.start + Math.abs(t.length)) / ROLL_STEP),
+                   Math.floor(t.start / ROLL_STEP) + 1));
+  enqueue(async () => {
+    if (e.which === 3) {                     // right click: delete
+      if (hit) { await j("/delnote", { name: hit.name }); await rollSyncNode(sn.name); }
+    } else if (!hit) {                       // left click on empty: add
+      await j("/note", { node: sn.name, pitch, start: col * ROLL_STEP,
+                         length: r.len, velocity: 100 });
+      await rollSyncNode(sn.name);
+    }
+  });
+  return true;                               // the face owns this click
+};
+
+// wheel inside an open roll scrolls the view (jam feedback #3: "can't move
+// around in the piano roll") — plain = pitch, shift = time. Capture phase
+// beats LiteGraph's own wheel-zoom for these events only.
+canvas.canvas.addEventListener("wheel", ev => {
+  const [cx, cy] = canvas.convertEventToCanvasOffset(ev);
+  const node = graph.getNodeOnPos(cx, cy, canvas.visible_nodes);
+  if (!node || !node.vlData || node.flags.collapsed) return;
+  const sn = node.vlData;
+  if (!sn.notes || !isExp(sn.name)) return;
+  const g = rollGeom(node), rows = Math.max(Math.floor(g.h / ROLL_ROWH), 1);
+  const pos = [cx - node.pos[0], cy - node.pos[1]];
+  if (pos[0] < g.x - KEYS_W || pos[0] > g.x + g.w ||
+      pos[1] < g.hy || pos[1] > g.y + rows * ROLL_ROWH) return;
+  ev.preventDefault(); ev.stopImmediatePropagation();
+  const r = rollOf(sn), d = Math.sign(ev.deltaY);
+  if (ev.shiftKey) r.c0 = Math.max(r.c0 + d * 4, 0);
+  else r.base = Math.max(0, Math.min(96, r.base - d * 3));
+  canvas.setDirty(true);
+}, { passive: false, capture: true });
+
+function makeKindClass(k) {
+  function VLNode() {
+    this.properties = { vl: null, kind: k.kind };
+    (k.inlets || []).forEach(p => this.addInput(p.name, p.signal));
+    (k.outlets || []).forEach(p => this.addOutput(p.name, p.signal));
+  }
+  VLNode.title = k.label;
+  VLNode.prototype.onConnectionsChange = onConnChange;
+  VLNode.prototype.onDrawForeground = drawFg;
+  return VLNode;
+}
+function makeLoopClass(ref) {
+  function VLLoop() { this.properties = { vl: null, kind: "loop", ref: ref }; }
+  VLLoop.title = "↺ " + ref;
+  VLLoop.prototype.onConnectionsChange = onConnChange;
+  VLLoop.prototype.onDrawForeground = drawFg;
+  VLLoop.prototype.onDblClick = function() { enterPatch(ref); };
+  return VLLoop;
+}
+async function enterPatch(ref) { sel = null; await j("/use", {mantle: ref}); refresh(); }
+
+function registerKinds() {
+  S.kinds.forEach(k => {
+    if (k.kind === "loop") return;            // Loops register per-mantle below
+    const type = k.category + "/" + k.kind;
+    TYPE_BY_KIND[k.kind] = type;
+    LiteGraph.registerNodeType(type, makeKindClass(k));
+  });
+  kindsRegistered = true;
+}
+function registerLoopTypes() {
+  Object.keys(LiteGraph.registered_node_types)
+    .filter(t => t.startsWith("loop/"))
+    .forEach(t => {
+      const ref = t.slice(5);
+      if (!S.mantles.includes(ref) || ref === S.active)
+        delete LiteGraph.registered_node_types[t];
+    });
+  S.mantles.filter(m => m !== S.active).forEach(m => {
+    if (!LiteGraph.registered_node_types["loop/" + m])
+      LiteGraph.registerNodeType("loop/" + m, makeLoopClass(m));
+  });
+}
+
+// ── layout: positions are MODEL content (x/y) — every move is a visible CLI
+//    action, layout persists in the project file, and moving is undoable
+//    (the author's "log the UI itself" ask, 2026-07-09). Nodes without x/y
+//    yet fall into the depth grid and get persisted on their next sync. ──
+const hasXY = c => c && c.x !== undefined && c.x !== "" && c.x !== null;
+function savePositions() {                     // drag end → the moved nodes only
+  const moves = [];
+  graph._nodes.forEach(n => {
+    if (!n.properties || !n.properties.vl || !n.vlData) return;
+    const c = n.vlData.content || {};
+    const x = Math.round(n.pos[0]), y = Math.round(n.pos[1]);
+    if (!hasXY(c) || Math.round(+c.x) !== x || Math.round(+c.y) !== y)
+      moves.push({ node: n.properties.vl, x, y });
+    if (n.vlData.notes && isExp(n.properties.vl))
+      localStorage.setItem(szKey(n.properties.vl),   // window size survives
+                           `${Math.round(n.size[0])},${Math.round(n.size[1])}`);
+  });
+  if (!moves.length) return;
+  enqueue(async () => {
+    await j("/move", { moves });
+    moves.forEach(m => log([`moved ${m.node} → ${m.x},${m.y}`]));
+    await refresh(false);
+  });
+}
+function autoLayout() {
+  const depth = {}, inflow = {};
+  S.wires.forEach(w => (inflow[w.to] = inflow[w.to] || []).push(w.from));
+  S.nodes.forEach(n => depth[n.name] = 0);
+  let ch = true, g = 0;
+  while (ch && g++ < 100) {
+    ch = false;
+    S.nodes.forEach(n => (inflow[n.name] || []).forEach(s => {
+      if (depth[s] + 1 > depth[n.name]) { depth[n.name] = depth[s] + 1; ch = true; } }));
+  }
+  const cols = {}, pos = {};
+  S.nodes.forEach(n => (cols[depth[n.name]] = cols[depth[n.name]] || []).push(n));
+  Object.entries(cols).forEach(([d, col]) => col.forEach((n, i) => {
+    pos[n.name] = { x: 60 + d * 260, y: 80 + i * 150 };
+  }));
+  return pos;
+}
+
+// ── sync: rebuild the LiteGraph graph from /state (the only direction) ──
+function sync() {
+  syncing = true;
+  registerLoopTypes();
+  // a rebuild mid-link-drag leaves LiteGraph pointing at freed nodes
+  // (TypeError: connecting_node is null) — drop any in-flight connection
+  canvas.connecting_node = null;
+  canvas.connecting_input = null;
+  canvas.connecting_output = null;
+  canvas.connecting_pos = null;
+  canvas.deselectAllNodes();
+  graph.clear();
+  const auto = autoLayout(), byName = {};
+  S.nodes.forEach(sn => {
+    let type = sn.kind === "loop" ? "loop/" + (sn.content.patch || "?")
+                                  : TYPE_BY_KIND[sn.kind];
+    if (sn.kind === "loop" && !LiteGraph.registered_node_types[type])
+      LiteGraph.registerNodeType(type, makeLoopClass(sn.content.patch || "?"));
+    const n = LiteGraph.createNode(type);
+    if (!n) return;
+    n.properties.vl = sn.name;
+    n.title = sn.name;
+    n.vlData = sn;
+    // ports come from the instance (Loops compute theirs); a multi inlet shows
+    // one slot per existing wire plus one spare, so fan-in is always possible
+    n.inputs = []; n.outputs = [];
+    sn.inlets.forEach(p => {
+      const wired = p.multi ? S.wires.filter(w => w.to === sn.name && w.dst_port === p.name).length : 0;
+      const style = p.param ? { shape: LiteGraph.BOX_SHAPE } : undefined;
+      for (let i = 0; i <= wired; i++) {
+        n.addInput(p.name, p.signal, style);   // param inlets draw as boxes
+        if (!p.multi) break;
+      }
+    });
+    sn.outlets.forEach(p => n.addOutput(p.name, p.signal));
+    addFaceWidgets(n, sn);                    // sliders/combos on the face (#14b)
+    n.bgcolor = KIND_BG[sn.kind] || "#2a2f3a";
+    n.color = "#1a1e28";
+    const c = sn.content || {};
+    n.pos = hasXY(c) ? [+c.x, +c.y] : [auto[sn.name].x, auto[sn.name].y];
+    if (sn.notes && isExp(sn.name)) {         // maximized window: kept size
+      const sz = localStorage.getItem(szKey(sn.name));
+      n.size = sz ? sz.split(",").map(Number) : [560, 360];
+    } else {
+      n.size = n.computeSize();
+      n.size[0] = Math.max(n.size[0], 150);
+      n.size[1] += (sn.notes && sn.notes.length) ? 44 : 14; // preview + subtitle room
+      if ((KINFO[sn.kind] || {}).holiday) n.size[1] += 36;  // VST window buttons
+    }
+    graph.add(n);
+    byName[sn.name] = n;
+  });
+  const nth = {};                              // k-th wire into (node, port) -> k-th slot
+  S.wires.forEach(w => {
+    const a = byName[w.from], b = byName[w.to];
+    if (!a || !b) return;
+    let os = a.findOutputSlot(w.src_port); if (os < 0) os = 0;
+    const key = w.to + ":" + w.dst_port, k = nth[key] || 0;
+    nth[key] = k + 1;
+    let seen = 0, is = -1;
+    (b.inputs || []).forEach((inp, i) => {
+      if (inp.name === w.dst_port) { if (seen === k) is = i; seen++; }
+    });
+    if (is >= 0) a.connect(os, b, is);
+  });
+  syncing = false;
+  if (sel && byName[sel]) canvas.selectNode(byName[sel]);
+  document.body.dataset.nodes = graph._nodes.length;   // probe/debug breadcrumbs
+  document.body.dataset.widgets = graph._nodes.reduce(
+    (a, n) => a + ((n.widgets || []).length), 0);
+  canvas.setDirty(true, true);
+}
+
+// page-created nodes (search box, context menu) → server, then re-sync
+graph.onNodeAdded = n => {
+  if (syncing || !n.properties || n.properties.vl) return;
+  const pos = n.pos.slice(), p = n.properties;
+  enqueue(async () => {
+    const r = p.kind === "loop" ? await j("/loop", {ref: p.ref})
+                                : await j("/node", {kind: p.kind});
+    if (r.name) {
+      await j("/move", { moves: [{ node: r.name,
+                                   x: Math.round(pos[0]), y: Math.round(pos[1]) }] });
+      sel = r.name;
+      log([`added ${r.name}`]);
+    }
+    await refresh();
+  });
+};
+graph.onNodeRemoved = n => {
+  if (syncing || !n.properties || !n.properties.vl) return;
+  const name = n.properties.vl;
+  enqueue(async () => {
+    await j("/delete", {node: name});
+    log([`deleted ${name}`]);
+    if (sel === name) sel = null;
+    await refresh();
+  });
+};
+canvas.onNodeSelected = n => { if (n.properties && n.properties.vl) { sel = n.properties.vl; inspect(); } };
+canvas.onNodeDeselected = () => { sel = null; inspect(); };
+canvas.canvas.addEventListener("pointerdown", () => ptrDown = true);
+canvas.canvas.addEventListener("mouseup", () => {
+  ptrDown = false;
+  savePositions();
+  flushParams();                             // a finished slider drag lands now
+});
+
+// keep the canvas sized to its pane
+function fitCanvas() {
+  const w = $("wrap");
+  canvas.resize(w.clientWidth, w.clientHeight);
+}
+window.addEventListener("resize", fitCanvas);
+new ResizeObserver(fitCanvas).observe($("wrap"));
+
+// Shift+A — the Blender gesture, now opening LiteGraph's searchable add box
+let lastPointer = null;
+$("cv").addEventListener("mousemove", ev => lastPointer = ev);
+window.addEventListener("keydown", ev => {
+  if (ev.key === "A" && ev.shiftKey && !inField()) {
+    canvas.showSearchBox(lastPointer || {clientX: innerWidth / 2, clientY: innerHeight / 2});
+    ev.preventDefault();
+  }
+});
+// space = play (capture phase beats LiteGraph's space-drag on the canvas)
+window.addEventListener("keydown", ev => {
+  if (ev.code === "Space" && !inField()) {
+    ev.preventDefault(); ev.stopPropagation();
+    $("play").click();
+  }
+}, true);
+// Ctrl+G — group the selected nodes into a Loop (the namesake gesture)
+window.addEventListener("keydown", ev => {
+  if ((ev.key === "g" || ev.key === "G") && (ev.ctrlKey || ev.metaKey) && !inField()) {
+    ev.preventDefault();
+    groupSelection();
+  }
+});
+async function groupSelection() {
+  const names = Object.values(canvas.selected_nodes || {})
+    .map(n => n.properties && n.properties.vl).filter(Boolean);
+  if (!names.length) { hint("select nodes first (drag a box), then group"); return; }
+  const ref = prompt(`group ${names.length} node(s) into a Loop — name the inner patch:`,
+                     "part" + (S.mantles.length + 1));
+  if (!ref) return;
+  const r = await j("/group", { nodes: names, ref });
+  if (r.name) { sel = r.name; log([`↺ grouped ${names.join(", ")} → Loop ${r.name} (patch ${ref})`]); }
+  refresh();
+}
+
+// ── inspector (typed editors + piano roll) — unchanged seam from v3 ──
+function fieldEditor(n, k, v) {
+  const ui = ((S.field_ui[n.kind] || {})[k]) || {type: "text"};
+  const esc = String(v ?? "").replace(/"/g, "&quot;");
+  if (ui.type === "select")
+    return `<select data-field="${k}">` + ui.options.map(o =>
+      `<option ${String(v)===o?"selected":""}>${o}</option>`).join("") + `</select>`;
+  if (ui.type === "vst")
+    return `<select data-field="${k}" data-vst="1"><option value="${esc}">${esc || "choose plugin…"}</option></select>`;
+  if (ui.type === "patch")
+    return `<select data-field="${k}">` + S.mantles.filter(m => m !== S.active).map(m =>
+      `<option ${v===m?"selected":""}>${m}</option>`).join("") + `</select>`;
+  if (ui.type === "sample")
+    return `<div class="row"><input data-field="${k}" value="${esc}">
+            <button data-pick="${k}" style="flex:0 0 auto">library…</button></div>`;
+  if (ui.type === "number") {
+    const num = Number(v) || 0;
+    if (ui.min !== undefined && ui.max !== undefined)   // slider + number pair
+      return `<div class="row"><input type="range" data-field="${k}" data-pair="${k}"
+                min="${ui.min}" max="${ui.max}" step="${ui.step || 1}" value="${num}"
+                style="flex:2">
+              <input type="number" data-field="${k}" data-pair="${k}"
+                min="${ui.min}" max="${ui.max}" step="${ui.step || 1}" value="${num}"
+                style="flex:1"></div>`;
+    return `<input data-field="${k}" type="number" step="${ui.step || 1}" value="${esc}">`;
+  }
+  return `<input data-field="${k}" value="${esc}">`;
+}
+function inspect() {
+  const el = $("insp"), pad = $("insppad");
+  const n = S ? S.nodes.find(x => x.name === sel) : null;
+  if (!n) { el.classList.remove("open"); pad.innerHTML = ""; return; }
+  el.classList.add("open");
+  const ui = S.field_ui[n.kind] || {};
+  let html = `<h3>${n.name}</h3><div class="k">${n.kind} · ${(n.tags||[]).filter(t=>!t.startsWith("glyph:")).join(" ") || "no tags"}</div>`;
+  for (const [k, v] of Object.entries(n.content)) {
+    if (k === "x" || k === "y") continue;      // layout content, not a knob
+    const hintTxt = (ui[k] && ui[k].hint) ? `<span class="hint"> — ${ui[k].hint}</span>` : "";
+    html += `<label>${k}${hintTxt}${fieldEditor(n, k, v)}</label>`;
+  }
+  html += `<div class="row"><input id="newtag" placeholder="add tag (drums…)"><button id="tagbtn" style="flex:0 0 auto">tag</button></div>`;
+  if (n.kind === "loop" && n.content.patch)
+    html += `<div class="row"><button id="enterloop">enter ↺ ${n.content.patch}</button></div>`;
+  if ((KINFO[n.kind] || {}).holiday)
+    html += `<label style="margin-top:12px">plugin window <span class="hint">— the VST's own editor; apply bakes the knobs into the node</span></label>
+             <div class="row"><button data-vstui="open">open</button>
+             <button data-vstui="save">apply</button>
+             <button data-vstui="close">close</button></div>`;
+  if (n.notes) {
+    html += `<label style="margin-top:12px">piano roll <span class="hint">— click adds · click a note (or right-click) removes</span></label>
+             <canvas id="roll" width="272" height="180"></canvas>
+             <div class="rollbar">len <select id="rolllen">
+               <option value="24">1/16</option><option value="48">1/8</option>
+               <option value="96" selected>1/4</option><option value="192">1/2</option></select>
+               oct <button id="octdn">−</button><button id="octup">+</button>
+               <button id="rollclear" title="remove all notes">clear</button>
+               <span id="rollinfo"></span></div>`;
+  }
+  html += `<button class="danger" id="delnode">delete node</button>`;
+  pad.innerHTML = html;
+  pad.querySelectorAll("[data-field]").forEach(inp => {
+    if (inp.dataset.pair && inp.type === "range")       // slider drags sync the number
+      inp.addEventListener("input", () => {
+        pad.querySelectorAll(`[data-pair="${inp.dataset.pair}"]`).forEach(o => {
+          if (o !== inp) o.value = inp.value; });
+      });
+    inp.addEventListener("change", async () => {
+      pad.querySelectorAll(`[data-pair="${inp.dataset.pair || ""}"]`).forEach(o => {
+        if (o !== inp) o.value = inp.value; });
+      await j("/set", {node: n.name, field: inp.dataset.field, value: inp.value});
+      await refresh(false);
+      rerenderLive();
+    });
+    if (inp.dataset.vst) loadVsts(inp, n);
+  });
+  pad.querySelectorAll("button[data-pick]").forEach(b => {
+    b.onclick = () => {
+      samplePickCb = async ref => {   // pick = set the field to the library ref
+        await j("/set", {node: n.name, field: b.dataset.pick, value: ref});
+        samplePickCb = null; refresh(false);
+        log([`sample set: ${ref}`]);
+      };
+      $("libwrap").classList.add("open");
+      hint("click a sound in the library to assign it");
+      libSearch();
+    };
+  });
+  const tagbtn = pad.querySelector("#tagbtn");
+  if (tagbtn) tagbtn.onclick = async () => {
+    const t = pad.querySelector("#newtag").value.trim();
+    if (t) { await j("/cmd", {command:`tag ${n.name} +${t}`}); refresh(); }
+  };
+  const enter = pad.querySelector("#enterloop");
+  if (enter) enter.onclick = () => enterPatch(n.content.patch);
+  pad.querySelectorAll("button[data-vstui]").forEach(b => {
+    b.onclick = () => vstUi(n.name, b.dataset.vstui);
+  });
+  pad.querySelector("#delnode").onclick = async () => {
+    await j("/delete", {node: n.name}); log([`deleted ${n.name}`]);
+    sel = null; inspect(); refresh();
+  };
+  if (n.notes) rollInit(n);
+}
+async function loadVsts(selEl, n) {
+  if (!vstCache) vstCache = (await j("/vsts")).plugins || [];
+  const cur = selEl.value;
+  selEl.innerHTML = `<option value="">choose plugin…</option>` + vstCache.map(p =>
+    `<option value="${p.name}" ${p.name===cur?"selected":""}>${p.name} · ${p.bits}-bit</option>`).join("");
+  if (cur && !vstCache.some(p => p.name === cur))
+    selEl.innerHTML += `<option selected>${cur}</option>`;
+}
+
+// ── the piano roll ──
+let rollBase = 48;   // bottom pitch (C3)
+function rollInit(n) {
+  const cv = $("roll"), ROWS = 24, COLS = 32, STEP = 24;   // 16th-note grid, 2 bars
+  const cw = cv.width / COLS, chh = cv.height / ROWS;
+  function drawRoll() {
+    const ctx = cv.getContext("2d");
+    ctx.fillStyle = "#0c0e12"; ctx.fillRect(0, 0, cv.width, cv.height);
+    for (let r = 0; r < ROWS; r++) {
+      const pitch = rollBase + (ROWS - 1 - r);
+      if ([1,3,6,8,10].includes(pitch % 12)) {           // black keys shaded
+        ctx.fillStyle = "#10131a"; ctx.fillRect(0, r * chh, cv.width, chh);
+      }
+      if (pitch % 12 === 0) {                            // C rows lined + labeled
+        ctx.strokeStyle = "#262b36"; ctx.beginPath();
+        ctx.moveTo(0, (r+1) * chh); ctx.lineTo(cv.width, (r+1) * chh); ctx.stroke();
+        ctx.fillStyle = "#4d5464"; ctx.font = "8px ui-monospace";
+        ctx.fillText("C" + (pitch/12 - 1), 2, r * chh + 8);
+      }
+    }
+    for (let c = 0; c <= COLS; c += 4) {                 // beat lines
+      ctx.strokeStyle = c % 16 === 0 ? "#333a49" : "#1d222d";
+      ctx.beginPath(); ctx.moveTo(c * cw, 0); ctx.lineTo(c * cw, cv.height); ctx.stroke();
+    }
+    (n.notes || []).forEach(t => {
+      const r = ROWS - 1 - (t.pitch - rollBase);
+      if (r < 0 || r >= ROWS) return;
+      ctx.fillStyle = t.length < 0 ? "#e0707a" : "#b48ce0";
+      ctx.fillRect(t.start / STEP * cw + 1, r * chh + 1,
+                   Math.max(Math.abs(t.length) / STEP * cw - 2, 3), chh - 2);
+    });
+    $("rollinfo").textContent = `C${rollBase/12-1}–C${(rollBase+ROWS)/12-1}`;
+  }
+  function cellAt(ev) {
+    const r = cv.getBoundingClientRect();
+    const col = Math.floor((ev.clientX - r.left) / cw);
+    const row = Math.floor((ev.clientY - r.top) / chh);
+    return { col, pitch: rollBase + (ROWS - 1 - row) };
+  }
+  function noteAt(col, pitch) {                 // column-range overlap, forgiving
+    return (n.notes || []).find(t => t.pitch === pitch &&
+      col >= Math.floor(t.start / STEP) &&
+      col < Math.max(Math.ceil((t.start + Math.abs(t.length)) / STEP),
+                     Math.floor(t.start / STEP) + 1));
+  }
+  async function rollSync() {
+    S = await j("/state");
+    const nn = S.nodes.find(x => x.name === n.name);
+    n.notes = nn ? nn.notes : [];
+    drawRoll(); sync();
+  }
+  cv.onclick = async ev => {
+    const { col, pitch } = cellAt(ev);
+    const hitN = noteAt(col, pitch);
+    if (hitN) await j("/delnote", {name: hitN.name});
+    else await j("/note", {node: n.name, pitch, start: col * STEP,
+                           length: +$("rolllen").value, velocity: 100});
+    rollSync();
+  };
+  cv.oncontextmenu = async ev => {              // right-click always deletes
+    ev.preventDefault();
+    const { col, pitch } = cellAt(ev);
+    const hitN = noteAt(col, pitch);
+    if (hitN) { await j("/delnote", {name: hitN.name}); rollSync(); }
+  };
+  $("rollclear").onclick = async () => {
+    for (const t of (n.notes || [])) await j("/delnote", {name: t.name});
+    rollSync();
+  };
+  $("octdn").onclick = () => { rollBase = Math.max(rollBase - 12, 0); drawRoll(); };
+  $("octup").onclick = () => { rollBase = Math.min(rollBase + 12, 96); drawRoll(); };
+  drawRoll();
+}
+
+// ── library ──
+async function libSearch() {
+  const q = $("libsearch").value;
+  const data = await j("/library?q=" + encodeURIComponent(q));
+  const el = $("lib");
+  el.innerHTML = (data.results || []).map(s =>
+    `<div class="s"><span title="${s.ref}">${s.category ? s.category + "/" : ""}${s.name}</span>
+     <button data-ref="${s.ref}">${samplePickCb ? "pick" : "+"}</button></div>`).join("")
+    || "<div style='padding:6px;color:#5a6172'>no matches</div>";
+  el.querySelectorAll("button[data-ref]").forEach(b => {
+    b.onclick = async () => {
+      if (samplePickCb) { samplePickCb(b.dataset.ref); hint(); libSearch(); return; }
+      const r = await j("/instrument", {ref: b.dataset.ref});
+      if (r.name) log([`instrument ready: ${r.name} — wire a sequence into its notes inlet`]);
+      refresh();
+    };
+  });
+}
+
+// ── toolbar + boot ──
+async function refresh(redrawInsp = true) {
+  S = await j("/state");
+  S.kinds.forEach(k => KINFO[k.kind] = { editor: k.editor, holiday: k.holiday });
+  if (!kindsRegistered) registerKinds();
+  $("patch").innerHTML = S.mantles.map(m =>
+    `<option ${m === S.active ? "selected" : ""}>${m}</option>`).join("");
+  $("addkind").innerHTML = `<option value="">+ add node…</option>` +
+    S.kinds.filter(k => k.kind !== "loop")
+      .map(k => `<option value="${k.kind}">${k.label} · ${k.category}</option>`).join("") +
+    S.mantles.filter(m => m !== S.active).map(m => `<option value="loop:${m}">↺ Loop: ${m}</option>`).join("");
+  $("bpm").value = S.meta.bpm;
+  $("meta").textContent = `${S.meta.ppqn} PPQN · ${S.meta.sig} · Void Loops Studio`;
+  sync();
+  // never clobber a field the user is typing in (jam feedback #4: "params
+  // reset when something happens somewhere else") — skip the redraw while
+  // focus is inside the inspector
+  if (redrawInsp && !$("insppad").contains(document.activeElement)) inspect();
+}
+$("patch").onchange = async e => { sel = null; await j("/use", {mantle: e.target.value}); refresh(); };
+$("newpatch").onclick = async () => {
+  const name = prompt("new patch name:", "patch" + (S.mantles.length + 1));
+  if (name) { await j("/newpatch", {name}); refresh(); }
+};
+$("addkind").onchange = async e => {
+  const v = e.target.value; e.target.value = "";
+  if (!v) return;
+  const r = v.startsWith("loop:") ? await j("/loop", {ref: v.slice(5)}) : await j("/node", {kind: v});
+  if (r.name) { sel = r.name; log([`added ${r.name}`]); }
+  refresh();
+};
+$("play").onclick = async () => {
+  hint("rendering…");
+  const r = await j("/render", {});
+  hint();
+  if (!r.rendered) return;
+  const a = $("audio");
+  a.src = "/wav?t=" + Date.now();
+  a.play().then(() => {
+    // "the mix doesn't work" (jam #1) was really "my first note is 7s in" —
+    // say where the first sound lands whenever there's a silent lead-in
+    if (r.first_sound_s > 1.5)
+      log([`♪ playing — first sound lands at ${r.first_sound_s.toFixed(1)}s ` +
+           `(your earliest note starts there; drag notes left to start sooner)`]);
+    else log(["♪ playing"]);
+  }).catch(e => log(["audio: " + e], true));
+};
+$("stop").onclick = () => { const a = $("audio"); a.pause(); a.currentTime = 0; };
+$("bounce").onclick = async () => {
+  const r = await j("/render", {});
+  if (r.rendered) log(["bounced → " + r.rendered]);
+};
+$("grouploop").onclick = () => groupSelection();
+$("undo").onclick = async () => { await j("/cmd", {command: "undo"}); refresh(); };
+$("redo").onclick = async () => { await j("/cmd", {command: "redo"}); refresh(); };
+$("bpm").addEventListener("change", async e => { await j("/meta", {bpm: +e.target.value || 120}); refresh(false); });
+$("libtoggle").onclick = () => {
+  const el = $("libwrap");
+  el.classList.toggle("open");
+  if (el.classList.contains("open")) libSearch(); else samplePickCb = null;
+};
+$("libsearch").addEventListener("input", () => libSearch());
+async function runCmd() {
+  const el = $("cmd");
+  if (!el.value.trim()) return;
+  const r = await j("/cmd", {command: el.value});
+  log(["> " + el.value, ...(r.lines || [])], r.ok === false);
+  el.value = ""; refresh();
+}
+$("run").onclick = runCmd;
+$("cmd").addEventListener("keydown", e => { if (e.key === "Enter") runCmd(); });
+
+fitCanvas();
+refresh();
+</script></body></html>

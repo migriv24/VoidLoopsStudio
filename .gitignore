@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+.venv/
+venv/
+
+# Void Loops project/state files (data, not source)
+*.vlp.json
+*.vlp
+
+# Generated OKF viewer (rebuild with: python okf/viz/build.py)
+okf/viz/index.html
