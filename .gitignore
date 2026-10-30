@@ -14,3 +14,14 @@ venv/
 
 # Generated OKF viewer (rebuild with: python okf/viz/build.py)
 okf/viz/index.html
+
+# Never published (Void Mago's Iscariot): secrets, correspondence between
+# agents, and the private-terms list.
+.env
+git_secret.txt
+KEEP_HIDDEN.txt
+*.pem
+MESSAGE_FOR_*.md
+REPORT_FROM_*.md
+.private-terms
+.claude/settings.local.json
