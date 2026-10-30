@@ -2,7 +2,7 @@
 type: Reference
 title: Void Core
 description: The foundational host-agnostic overlay engine Void Loops is built on. Its own OKF bundle is the authoritative source.
-resource: C:/Users/migri/Documents/Projects/VoidCore/okf/index.md
+resource: ../VoidCore/okf/index.md
 tags: [status:current, audience:dev, audience:library, confidence:verified]
 timestamp: 2026-06-27T00:00:00Z
 ---
@@ -14,7 +14,7 @@ language. It does **not** compute the host app's results; it structures and orch
 them (the *drift test*). Void Loops applies it to a DAW.
 
 The authoritative description is Void Core's **own OKF bundle** at
-`C:/Users/migri/Documents/Projects/VoidCore/okf/`. Key concepts Void Loops leans on:
+`../VoidCore/okf/`. Key concepts Void Loops leans on:
 
 - **rune** — atomic editable unit → a [note](/concepts/note-as-rune.md).
 - **mantle** — runes + a rule table over a domain → a [pattern](/concepts/pattern-as-mantle.md).

@@ -129,7 +129,7 @@
   split into modules).
 - **Retired our `okf/viz/`** shim (it pointed into Void Core's now-deleted OKF viewer, so it
   was already dead) and its references. Visual study of this bundle now goes through
-  **FaultSack** (`C:/Users/migri/Documents/Projects/FaultSack`) — a Void Core app that builds
+  **FaultSack** (`../FaultSack`) — a Void Core app that builds
   a unified concept+code graph, ranks "what's most responsible" by centrality (a **module
   map**), and adds a developer-notes critique-and-export flow. Higher altitude than the old
   status-colored reader.
@@ -882,3 +882,58 @@ The native VLS gets its front door, the successor to the Python era's
   270° knob sweep + pointer on a graphite plate, with an audio disc / events
   ring at the base (the port-shape taxonomy in miniature). Verified launching
   through the `.lnk` itself. All 6 suites stay green.
+
+## 2026-10-04 — The catch-up begins: eleven weeks behind, a feature freeze, and what collaborating on music means
+
+The author: VLS is behind the family, so **new features are on hold** while we
+catch up on the fundamentals of the other libraries, with LAN networking the
+important one. They also asked what collaborating on a music loop should mean,
+and for a "local only / private" mode beside a collaborative one.
+
+**Inbox, read and answered.** Void Maiz *headless available* (2026-08-18):
+adopting in catch-up C2, with a musical action vocabulary so an agent uses the
+instrument rather than poking the data model. Void Core 0.2.14 (2026-09-03):
+reship verdict confirmed; save already round-trips the document (§2c is safe);
+our glyphs are only *registered*, so they would not travel to a peer, and
+declaring them is C1. Void Jelly (2026-10-03): informational, no reply needed.
+Void Mago (2026-10-04): all three asks done (below). Replies left in
+`../VoidCore` and `../VoidMaiz`.
+
+**Void Mago's asks.** `void.json` written (application, 0.0.1 from
+`pyproject.toml`, requires Core via Maiz at `c-abi`, Maiz and Allomone static).
+`mago doctor`: no errors or notes of ours (its two errors are a Core↔Palabra
+seam-name disagreement). `mago blast voidcore` lists us under RESHIP. The *Void
+Node* question is settled in `developer_questions.md`: it is Void Maiz, renamed
+2026-07-13.
+
+**The native shell still builds.** Rebuilt against today's Maiz, which now pulls
+in Palabra and the Reticulum vendor tree: 25/26 green, and the red one is
+Maiz's known `reduce_conformance` (17/25 since Core extended the contract).
+One trap found: building under a long path (the agent's temp folder) fails with
+`opening dependency file …obj.d: No such file or directory`. That is Windows'
+path limit meeting Reticulum's hashed object directories, not a code error.
+Build in `native/build`.
+
+**What the family now gives us.** Maiz Q30: Maiz owns what networking looks like,
+Palabra owns what it is, the app answers "may this rune leave this device?".
+Palabra: whole-state sync that converges under loss and partition; per-mantle and
+per-rune export; files by hash. Reticulum on the LAN, sealed, with a person
+allowing each joiner; Interaction Combinators runs two-person sessions on it,
+with an Android build. Maiz many-inputs (`"max":"many"`) is the spare-slot ask
+we made in July.
+
+**The design: [collaboration](/concepts/collaboration.md).** Two axes rather than
+one switch. A *project* is Local (no network code runs, the default), Hosted or
+Joined, kept in peer-local `config` because privacy is the sender's decision. A
+*Loop* is private, **bounced** (the sound leaves by hash, the recipe stays home,
+which is how musicians share unfinished ideas) or shared. The render mantle
+never leaves. VLS never rewrites the shared graph, so IC's wire-rune machinery
+is not needed here. VSTs are the hard case because every device renders
+locally; the answer is a visible placeholder plus bounce-on-demand from a peer
+that can render, which is Palabra's planned compute capability. Jamming needs a
+fourth channel, a shared clock (#19). Tempo has to leave `config` to sync (#18).
+A phone is a Remote first (#20), and the streaming engine must be portable from
+its first line.
+
+**Roadmap:** a *Catch-up phase* (C0 done; C1 Core 0.2.14, C2 Maiz, C3 LAN editing)
+sits before the native build order, which resumes at milestone 2 afterwards.

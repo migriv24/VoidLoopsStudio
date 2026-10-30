@@ -8,7 +8,7 @@ no audio itself — that is the host's job, reached across the effect-handler bo
 Foundation: the `voidcore` package (rune/mantle/holiday model, the dispatcher, and the
 Scry/Temper/Reduce transformation layers). Install it editable first:
 
-    pip install -e C:/Users/migri/Documents/Projects/VoidCore
+    pip install -e ../VoidCore
 
 Build order: this is step 0 — the project skeleton + a green dispatcher round-trip.
 See `okf/roadmap.md`.

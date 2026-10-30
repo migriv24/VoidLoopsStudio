@@ -16,6 +16,42 @@ answers get folded into the concepts and cleared from here.
 
 # Open
 
+## 20. What is a phone for, first? (2026-10-04)
+
+Context: [collaboration](/concepts/collaboration.md) §6. Void Maiz has a touch
+layer and an Android path; a phone cannot host VSTs. Three roles: **Remote**
+(a joined peer that controls a desktop session and renders nothing), **Sketchpad**
+(a Local project, native nodes only, brought into a session later), **Full peer**
+(renders what it can, receives bounces for the rest).
+
+**Lean: Remote first.** It is the cheapest and needs no audio engine on the
+phone, and it exercises the whole LAN path. Whatever the answer, the streaming
+engine is written portable from its first line (miniaudio has AAudio), so
+Sketchpad stays open.
+
+## 19. The shared clock for jamming: our own, or a license decision? (2026-10-04)
+
+Context: [collaboration](/concepts/collaboration.md) §5. Playing together needs
+every device to agree on tempo and a beat origin, and to estimate each peer's
+clock offset. Ableton Link solves exactly this on a LAN, but it is GPLv2 or
+commercially licensed, and the family is MIT.
+
+**Lean: a small protocol of our own**, over Palabra's ephemeral channel (or a new
+kind if presence's TTL/newest-wins shape is too coarse), measured once the
+engine exists. Not needed for editing together, so it does not gate C3.
+
+## 18. Tempo (and session meta) from `config` to content? (2026-10-04)
+
+Context: [collaboration](/concepts/collaboration.md) §4. BPM has been `config`
+since 2026-07-07, so a tempo knob never touched undo. `config` is peer-local
+and **does not sync**, so in a session every device would play at its own
+tempo.
+
+**Lean: BPM becomes content**, a `measure` rune (Void Core 0.2.14: unit `bpm`,
+level ratio), joined Lamport-latest like positions so two people turning it never
+raise a dialog. The undo worry is answered by the session's compensating undo.
+Device-only settings (audio device, buffer, monitor level) stay `config`.
+
 ## 17. Native wire relations — numeric `"i:j"` or the named `signal:src->dst` form? (2026-07-16)
 
 The Python model writes wire relations as `audio:out->in` (self-describing,
@@ -45,6 +81,11 @@ writers and two relation dialects would corrupt silently.
 > The Void Core C++ audit ran (C ABI ready; the reduce-at-the-Python-seam gap
 > filed in `../VoidNode/MESSAGE_FOR_VOIDCORE.md`). The evaluation below is kept
 > for the record; the living plan is Void Node's OKF + the roadmap's native era.
+>
+> **Settled 2026-10-04 (Void Mago asked):** there is no `../VoidNode` because
+> **Void Node was renamed Void Maiz on 2026-07-13** (`../VoidMaiz`, namespace
+> `maiz::`). Nothing was lost or folded in. Read every "Void Node" above as Void
+> Maiz.
 
 ## 16. The native era — language & stack for the real VLS (author, 2026-07-09)
 

@@ -53,7 +53,7 @@ Depends on the `voidcore` package, installed **editable** from its repo (it
 ships a native `libvoidcore.dll`, so it is not a PyPI package):
 
 ```bash
-pip install -e C:/Users/migri/Documents/Projects/VoidCore   # the foundation
+pip install -e ../VoidCore   # the foundation
 pip install -e .                                             # this package
 python -m voidloops --ui     # the LiteGraph editor on ~/Documents/VoidLoopsProjects/default.vlp.json
 pytest                       # the 16-file behavioral spec the native build must match

@@ -2,7 +2,7 @@
 type: Reference
 title: OKF spec
 description: The Open Knowledge Format v0.1 — the format this bundle conforms to. Authoritative copy lives with Void Core.
-resource: C:/Users/migri/Documents/Projects/VoidCore/okf/references/okf-spec.md
+resource: ../VoidCore/okf/references/okf-spec.md
 tags: [status:current, audience:dev, confidence:asserted]
 timestamp: 2026-06-27T00:00:00Z
 ---
@@ -14,8 +14,8 @@ concepts, each `type`d YAML-frontmatter + body, cross-linked by ordinary markdow
 
 The authoritative spec and the reference engine live with
 [Void Core](/references/void-core.md) at
-`C:/Users/migri/Documents/Projects/VoidCore/okf/references/okf-spec.md` and
-`C:/Users/migri/Documents/Projects/VoidCore/holidays/okf/`. Void Loops' bundle is a
+`../VoidCore/okf/references/okf-spec.md` and
+`../VoidCore/holidays/okf/`. Void Loops' bundle is a
 standard OKF bundle: Void Core's OKF engine exposes it as data (`ls`/`get`/`query`/
 `validate`/`analyze`), and FaultSack studies it visually (the stock `viz.html` viewer was
 retired in the core's cleanup pass).

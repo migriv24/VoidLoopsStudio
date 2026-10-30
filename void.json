@@ -1,0 +1,67 @@
+{
+  "manifest": "void/0.1",
+  "name": "voidloopsstudio",
+  "display_name": "Void Loops Studio",
+  "kind": "application",
+  "version": "0.0.1",
+  "license": "MIT",
+  "repository": "https://github.com/migriv24/VoidLoopsStudio",
+  "description": "A node-based DAW: the project is a Void Core mantle drawn as a dataflow graph on Void Maiz, and the host computes the audio. Native C++20 shell in native/; the Python prototype in voidloops/ is the reference implementation.",
+  "status": "concept",
+  "version_sources": [
+    "pyproject.toml"
+  ],
+  "requires": [
+    {
+      "name": "voidcore",
+      "kind": "runtime",
+      "version": ">=0.2.14",
+      "sibling": "../VoidCore",
+      "cmake_var": "VOIDCORE_ROOT",
+      "link": "shared",
+      "via": "voidmaiz",
+      "seam": "c-abi",
+      "note": "the model and the dispatcher. The native shell reaches it through Void Maiz's add_subdirectory, which links the prebuilt libvoidcore.dll that ships beside vls_native.exe. The Python reference implementation (voidloops/) imports the editable voidcore package from the same checkout. The floor is Void Maiz's."
+    },
+    {
+      "name": "voidmaiz",
+      "kind": "runtime",
+      "version": "*",
+      "sibling": "../VoidMaiz",
+      "cmake_var": "VOIDMAIZ_ROOT",
+      "link": "static",
+      "note": "the canvas, inspector, faces and widget protocol of the native shell (voidmaiz, voidmaiz_view), compiled in with add_subdirectory. Headless and voidmaiz_net are not adopted yet."
+    },
+    {
+      "name": "voidallomone",
+      "kind": "runtime",
+      "version": "*",
+      "sibling": "../VoidAllomone",
+      "cmake_var": "VOIDALLOMONE_ROOT",
+      "link": "static",
+      "via": "voidmaiz",
+      "note": "not used directly; compiled into Void Maiz, so a change to it is a rebuild here."
+    }
+  ],
+  "interacts_with": [],
+  "provides": {
+    "gui": "vls_native",
+    "libraries": [
+      "vls_model"
+    ],
+    "documents": {
+      "state": "*.native.vlp.json"
+    },
+    "contracts": {
+      "knowledge_bundle": "okf/"
+    }
+  },
+  "vendors": [],
+  "platforms": [
+    "windows-x64"
+  ],
+  "update": {
+    "channel": "desktop",
+    "side_by_side": true
+  }
+}

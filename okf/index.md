@@ -45,7 +45,7 @@ at this stage). Honesty convention (inherited from Void Core): every concept is
 * [Roadmap](/roadmap.md) - planned concepts + the near-term build order (node model → first sound: Sequencer → Osc → Output)
 * [Developer questions](/developer_questions.md) - the living log of open decisions for the author, each linked to its concept
 
-> **Studying this bundle:** point **FaultSack** (`C:/Users/migri/Documents/Projects/FaultSack`)
+> **Studying this bundle:** point **FaultSack** (`../FaultSack`)
 > at this project — it builds a graph-centrality **module map** + study site (flashcards, quiz,
 > and a developer-notes critique flow) over the bundle *and* the code. The old in-tree
 > `okf/viz/` viewer was a shim into Void Core's OKF viewer, which the core has since removed;
@@ -62,6 +62,7 @@ The node paradigm (post-pivot):
 * [Loop](/concepts/loop.md) - **the app's namesake unit**: a sub-graph of nodes used as one node (a mantle wired in by boundary ports); the node-world "pattern"
 * [Rules, reversibility & the boundary](/concepts/rules-and-reversibility.md) - three tiers of rule; the core stays total & reversible (strict wiring now, emergent interactions later)
 * [Reverse & reference nodes](/concepts/reverse-and-reference.md) - the live render-reference; the project's north star
+* [Collaboration](/concepts/collaboration.md) - local / hosted / joined projects; private / bounced / shared Loops; what crosses the wire; the shared clock; what a phone is for (planned, 2026-10-04)
 
 Carried over (re-anchored on the node graph):
 

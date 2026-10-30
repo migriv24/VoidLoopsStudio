@@ -8,7 +8,7 @@ version = "0.0.1"
 description = "Void Loops Studio — a pattern-based DAW built on top of Void Core."
 requires-python = ">=3.12"
 # Runtime dependency: the `voidcore` package, installed editable from its repo:
-#   pip install -e C:/Users/migri/Documents/Projects/VoidCore
+#   pip install -e ../VoidCore
 # It is intentionally NOT listed here as a PyPI dependency (it is a local editable
 # install with a native libvoidcore.dll, not an index package). See README.
 dependencies = []

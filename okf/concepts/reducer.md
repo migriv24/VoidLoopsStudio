@@ -2,7 +2,7 @@
 type: Concept
 title: The transformation layers (Reduce / Temper / Scry)
 description: How Void Loops APPLIES Void Core's three transformation layers. Slimmed 2026-07-06 — the layers themselves are the core's concern; the authoritative detail lives in Void Core's OKF.
-resource: C:/Users/migri/Documents/Projects/VoidCore/okf/concepts/reduce.md
+resource: ../VoidCore/okf/concepts/reduce.md
 tags: [status:planned, audience:dev, confidence:asserted, foundation]
 timestamp: 2026-07-06T00:00:00Z
 ---

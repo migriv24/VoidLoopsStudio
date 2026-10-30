@@ -178,6 +178,39 @@ compile pipeline, and audio engine. What is fixed:
   **migrate into the native build order** — streaming playback is its first
   engine milestone, and VST3/CLAP its second, both natural in C++.
 
+## Catch-up phase — feature freeze (author, 2026-10-04)
+
+VLS stood still from 2026-07-16 while the family moved: Void Core 0.2.14 (rune
+kinds, declared glyphs, values on edges), Void Maiz (headless, networking,
+collaborative canvas, touch, many-inputs), Void Palabra (sync, CRDT merge,
+Reticulum), Void Mago (the registry). The author: **new features are on hold
+until VLS catches up on the fundamentals of the other libraries; LAN networking
+is the important one.** The native build order below resumes after this phase,
+starting at milestone 2.
+
+- **C0 — orient** ✅ (2026-10-04): inbox read; `void.json` written, `mago doctor`
+  clean for us, `mago blast voidcore` lists us; the native shell rebuilt green
+  against today's Maiz (25/26; the red one is Maiz's known `reduce_conformance`);
+  [collaboration](/concepts/collaboration.md) written.
+- **C1 — Void Core 0.2.14**: `glyph declare` the VLS set into the document (the
+  meaning must travel with the music); read field lists from `glyphs` instead of
+  `glyphs.cpp`'s table; mark kinds (`measure` for bpm/gain/cutoff with honest
+  levels: gain in dB is *interval*). Parameters stay fields unless rules read them.
+- **C2 — Void Maiz**: hoist `build_app()` and ship `vls_headless`, with a
+  registered **musical action vocabulary** (place a step, set tempo, loop a
+  region) and audio as declared effects; GUI `SessionKind::Human`; many-inputs
+  (`"max":"many"`) for `mix.in` / `sequence.arr` (replaces our spare-slot ask);
+  device-scoped node names; add-palette port hints.
+- **C3 — LAN collaboration, editing only**: posture (Local / Host / Join) in
+  `config`; the VLS share filter (render mantle never; Loop levels private /
+  shared); `voidmaiz_net` + `RnsSession`; compensating undo; a two-window duo
+  bench like IC's. *Exit test: two devices edit one patch on one Wi-Fi and
+  converge; a private Loop never appears on the peer.* Blocked on #18 for tempo.
+- **Design-only, no code in this phase**: bounced Loops and bounce-on-demand
+  (needs an engine), the shared clock (#19), the phone's role (#20). One rule
+  carries forward into milestone 4: **the streaming engine is portable from its
+  first line** (miniaudio, AAudio on Android).
+
 ## The native build order (fixed 2026-07-16 — Void Maiz declared ready, the rewrite begins)
 
 Void Maiz shipped phases 1–4 (embed, projection, canvas + gesture grammar,
