@@ -28,7 +28,13 @@ if(NOT MSVC)
   # only libvoidcore.dll (which sits beside it) stays dynamic. This is what
   # frees the desktop shortcut from the msys64 ucrt64 PATH gotcha — no
   # libstdc++-6.dll / libgcc_s_seh-1.dll shadowing at launch.
-  target_link_options(vls_native PRIVATE -static -static-libgcc -static-libstdc++)
+  target_link_options(vls_native PRIVATE -static-libgcc -static-libstdc++)
+  if(WIN32)
+    # Fully static on Windows only. On Linux, libGL and libc are the system's
+    # and can only be linked dynamically: `-static` there fails with "attempted
+    # static link of dynamic object libGL.so" (Ubuntu 24.04, 2026-11-19).
+    target_link_options(vls_native PRIVATE -static)
+  endif()
 endif()
 
 enable_testing()
